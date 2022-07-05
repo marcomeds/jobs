@@ -13,12 +13,13 @@ pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
 #set.seed(4426759)
 #set.seed(3987658)
 #set.seed(4701465)
-set.seed(6138353)
+#set.seed(6138353)
+set.seed(5309079)
 
 jobs_data <- read_csv(here("01_Data", "02_Clean", "jobs_data.csv"))
 
 jobs_daily_randomization <- jobs_data %>%
-  filter(fecha_sirede >= Sys.Date() - 3) %>%
+  filter(fecha_sirede >= Sys.Date() - 1) %>%
   mutate(tratamiento = sample(c("A1", "B2", "C2"), n(), replace = T)) %>%
   mutate(randomization_id = str_c(str_remove_all(Sys.Date(), pattern = "-"), "-", row_number()))
 
