@@ -27,3 +27,15 @@
 
 # Exclude raw databases
 01_Data/01_Raw/**/*.csv
+
+# Exclude clean databases
+01_Data/02_Clean/**
+!01_Data/02_Clean/.gitkeep
+
+# Exclude working databases
+01_Data/03_Working/**
+!01_Data/03_Working/.gitkeep
+
+# Exclude Campañas
+01_Data/04_Campanias/**
+!01_Data/04_Campanias/.gitkeep
