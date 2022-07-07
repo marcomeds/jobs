@@ -110,9 +110,11 @@ write_excel_csv(archivo_citatorios,
                 na = "")
 
 write_excel_csv(archivo_citatorios_daily,
-                here("01_Data", "04_Campanias", "archivo_citatorios_20220706.csv"),
+                here("01_Data", "04_Campanias", "archivo_citatorios_20220707.csv"),
                 na = "")
   
+
+
 # ---- Archivo Calculadoras ----
 archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv")) %>%
   right_join(control_mensajes) %>%
@@ -134,6 +136,12 @@ archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv"))
   )) %>%
   # Create features for the calculator
   mutate(antiguedad_anios = round(antiguedad_dias / 365, 2)) %>%
+  # Get the minimum wage for the year the worker ended it's work relation
+  mutate(anio_termino = case_when(
+    !is.na(fecha_termino) ~ year(fecha_termino),
+    is.na(fecha_termino) ~ year(date_mx)
+  )) %>%
+  left_join(read_csv(here("01_Data", "01_Raw", "03_Calculadora", "salario_minimo.csv")), by = "anio_termino") %>%
   # Calculate the proportion of this year worked
   mutate(antiguedad_anio_actual = case_when(
     !is.na(fecha_termino) ~ round(as.numeric(fecha_termino - as_date("2022-01-01")) / 365, 2),
@@ -141,15 +149,21 @@ archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv"))
   ),
   # Calculate the days of vacation acording to tenure
   dias_vacaciones = case_when(
-    antiguedad_anios < 1 ~ 0,
+    antiguedad_anios < 1 ~ 6*antiguedad_anios,
     antiguedad_anios < 5 ~ 6 + (floor(antiguedad_anios) - 1)*2,
     T ~ 12 + floor(antiguedad_anios/5)*2
   )) %>%
   # Calculate payments that should be made to the worker
   mutate(c_indemnizacion = round(90*salario_diario, 2),
-         c_prima_antig = round(floor(antiguedad_anios)*12*salario_diario, 2),
-         c_aguinaldo = round(antiguedad_anio_actual*15*salario_diario, 2),
-         c_vacaciones = round(dias_vacaciones*0.25*salario_diario, 2)) %>%
+         c_prima_antig = case_when(
+           salario_diario < 2*sal_min ~ round(antiguedad_anios*12*salario_diario, 2),
+           T ~ round(antiguedad_anios*12*2*sal_min, 2)
+         ),
+         c_aguinaldo = case_when(
+           antiguedad_anio_actual < antiguedad_anios ~ round(antiguedad_anio_actual*15*salario_diario, 2),
+           T ~ round(antiguedad_anios*15*salario_diario, 2)
+         ),
+         c_vacaciones = round(dias_vacaciones*1.25*salario_diario, 2)) %>%
   # Select variables
   select(id_actor, id_demanda, folio_ofipart, anio_folio, junta, expediente, anio,
          created_at, tratamiento, nombre_completo_actor, genero, tipo_jornada,
@@ -158,12 +172,17 @@ archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv"))
          prob_getting_zero, avg_amount_payment, c_indemnizacion, c_prima_antig,
          c_aguinaldo, c_vacaciones)
   
+archivo_calculadoras_acumul <- read_csv("01_Data/04_Campanias/archivo_calculadoras.csv")
+
+archivo_calculadoras_daily <- archivo_calculadoras %>%
+  anti_join(archivo_calculadoras_acumul, by = "id_demanda")
+
 write_excel_csv(archivo_calculadoras,
                 here("01_Data", "04_Campanias", "archivo_calculadoras.csv"),
                 na = "")
 
 write_excel_csv(archivo_calculadoras_daily,
-                here("01_Data", "04_Campanias", "archivo_calculadoras_20220706.csv"),
+                here("01_Data", "04_Campanias", "archivo_calculadoras_20220707.csv"),
                 na = "")
   
   
