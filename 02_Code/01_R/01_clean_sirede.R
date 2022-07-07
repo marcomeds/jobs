@@ -29,6 +29,9 @@ sirede_demandas <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv
   )) %>%
   # Create expediente_id
   mutate(expediente_id = str_c(junta, expediente, anio, sep = "/")) %>%
+  # Join with Sebas's SCIAN database to get the giro_empleador
+  left_join(read_xlsx(here("01_Data", "01_Raw", "02_CDA", "giro_empleador.xlsx")),
+            by = "giro_empleador") %>%
   
   # --- Filter case files ---
   # 1) Keep case files that entered after the experiment started (2022-06-27).
@@ -37,7 +40,9 @@ sirede_demandas <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv
   filter(date_mx >= date("2022-06-27") & date_mx < Sys.Date(),
          !junta %in% c(17, 19, 20),
          accion_principal_segundo_nivel %in% c("INDEMNIZACIÓN CONSTITUCIONAL",
-                                               "REINSTALACIÓN"))
+                                               "REINSTALACIÓN")) %>%
+  # Create dummy for main action, where 1 is reinstatement and 0 is compensation
+  mutate(accion_principal = as.numeric(accion_principal_segundo_nivel == "REINSTALACIÓN"))
 
 
 # Filter using actores.csv
@@ -98,15 +103,21 @@ rm(list=setdiff(ls(), "jobs_demandas"))
 jobs_actores <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "actores.csv")) %>%
   
   # --- Clean ---
-  # Rename id as actor_id
+  # Change the timestamps to Mexico City timezone
+  mutate(created_at_mx = with_tz(created_at, "America/Mexico_City")) %>%
+  # Get the date of the file creation from the timestamp
+  mutate(date_mx = date(created_at_mx)) %>%
+  # Rename id as actor_id and other variables
   rename(actor_id = id,
          nombre_actor = nombre,
          primer_apellido_actor = primer_apellido,
-         segundo_apellido_actor = segundo_apellido) %>%
+         segundo_apellido_actor = segundo_apellido,
+         horas_sem = horas_semanales) %>%
   # Capitalize name strings
   mutate(across(c(nombre_actor,
                   primer_apellido_actor, 
-                  segundo_apellido_actor), 
+                  segundo_apellido_actor,
+                  categoria_trabajo), 
                 toupper)) %>%
   # Create actor's name
   mutate(nombre_completo_actor = str_c(str_replace_na(nombre_actor, ""),
@@ -115,9 +126,12 @@ jobs_actores <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "actores.csv")) 
                                        sep = " ")) %>%
   # Remove extra spaces created if an observation has NA's in name variables.
   mutate(nombre_completo_actor = str_squish(nombre_completo_actor)) %>%
-  # Calculate tenure and daily wage
-  mutate(tenure = as.numeric(fecha_termino - fecha_inicio),
-         daily_wage = case_when(
+  # Calculate antig_dias and sal_diario
+  mutate(antig_dias = case_when(
+           !is.na(fecha_termino) ~ as.numeric(fecha_termino - fecha_inicio),
+           is.na(fecha_termino) ~ as.numeric(date_mx - fecha_inicio)
+         ),
+         salario_diario = case_when(
            frecuencia_cobro == "BIMESTRAL" ~ percepcion_neta / 60,
            frecuencia_cobro == "CATORCENAL" ~ percepcion_neta / 14,
            frecuencia_cobro == "DECENAL" ~ percepcion_neta / 10,
@@ -125,15 +139,33 @@ jobs_actores <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "actores.csv")) 
            frecuencia_cobro == "MENSUAL" ~ percepcion_neta / 30,
            frecuencia_cobro == "QUINCENAL" ~ percepcion_neta / 15,
            frecuencia_cobro == "SEMANAL" ~ percepcion_neta / 7,
-         )) %>%
+         ),
+         # Create tipo_jornada from jornada
+         tipo_jornada = case_when(
+           jornada == "DIURNA" ~ 1,
+           jornada == "NOCTURNA" ~ 2,
+           jornada == "MIXTA" ~ 3,
+         ),
+         # Calculate hextra (extra hours) depending on tipo_jornada
+         hextra = case_when(
+           tipo_jornada == 1 & horas_sem > 48 ~ horas_sem - 48,
+           tipo_jornada == 2 & horas_sem > 42 ~ horas_sem - 42,
+           tipo_jornada == 3 & horas_sem > 45 ~ horas_sem - 45,
+           TRUE ~ 0
+         ),
+         # Create dummy for gender
+         gen = as.numeric(sexo == "MUJER"),
+         # Create dummy for trabajador de confianza (even though the dummy name is trabajador_base)
+         trabajador_base = as.numeric(str_detect(categoria_trabajo, pattern = "GERENTE|DIRECTOR|CHOFER PERSONAL|CHOFER PARTICULAR|DOMÉSTIC|DOMESTIC|REPRESENTANTE LEGAL|ABOGADO GENERAL|ADMINISTRADOR GENERAL|CONTADOR GENERAL|DEL HOGAR"))
+         ) %>%
   
   # --- Select ---
-  select(actor_id, demanda_id, nombre_completo_actor, edad, sexo, categoria_trabajo,
-         jornada, frecuencia_cobro, horas_semanales, percepcion_neta, daily_wage,
-         fecha_inicio, fecha_termino, tenure)
-  
-  # If tenure is NA, is because there is not end date. Fix NA's using the case date.
-  #mutate(tenure = ifelse(is.na(tenure), fecha_sirede - fecha_inicio, tenure))
+  select(actor_id, demanda_id, nombre_completo_actor, edad, sexo, gen,
+         categoria_trabajo, trabajador_base,
+         jornada, tipo_jornada, 
+         frecuencia_cobro, horas_sem, hextra, percepcion_neta, salario_diario,
+         fecha_inicio, fecha_termino, antig_dias)
+
 
 
 # ---- Clean contactos_actores.csv ----
@@ -184,24 +216,72 @@ jobs_representantes <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "represen
 
 
 # ---- Clean demandados.csv ----
+jobs_demandados <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandados.csv")) %>%
+
+  # --- Clean ---
+  # Clean names
+  rename(nombre_demandado = nombre,
+         primer_apellido_demandado = primer_apellido,
+         segundo_apellido_demandado = segundo_apellido) %>%
+  # Capitalize name strings
+  mutate(across(c(razon_social,
+                  nombre_demandado,
+                  primer_apellido_demandado, 
+                  segundo_apellido_demandado,
+                  calle,
+                  numero_exterior,
+                  numero_interior,
+                  colonia,
+                  municipio,
+                  estado), 
+                toupper)) %>%
+  # Create demandado's name
+  mutate(nombre_completo_demandado = str_c(str_replace_na(nombre_demandado, ""),
+                                           str_replace_na(primer_apellido_demandado, ""),
+                                           str_replace_na(segundo_apellido_demandado, ""),
+                                           sep = " ")) %>%
+  # Remove extra spaces created if an observation has NA's in name variables.
+  mutate(nombre_completo_demandado = str_squish(nombre_completo_demandado)) %>%
+  # Mutate the name if the defendant is a firm
+  mutate(nombre_completo_demandado = ifelse(tipo == "moral", razon_social, nombre_completo_demandado)) %>%
+  # Order names: first firms, the people, both arranged alphabetically
+  group_by(demanda_id) %>%
+  arrange(desc(tipo), nombre_completo_demandado, .by_group = T) %>%
+  ungroup() %>%
+  # Keep variables from demandados.csv
+  select(demanda_id, nombre_completo_demandado) %>%
+  # Number each of the defendant names in the case file
+  group_by(demanda_id) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  # Pivot wider to have one observation per case file address
+  pivot_wider(names_from = id, names_prefix = "nombre_demandado_",
+              values_from = nombre_completo_demandado, values_fill = "") %>%
+  # Create a single string with the name of all the defendants
+  unite(nombre_demandado, starts_with("nombre_demandado_"), sep="; ", remove = TRUE) %>%
+  # Removes extra ; from the names string
+  mutate(nombre_demandado = str_remove(nombre_demandado, pattern = "(; )+$"))
 
 
 
 # ---- Merge ----
-jobs_data <- jobs_demandas %>%
+jobs_clean <- jobs_demandas %>%
   left_join(jobs_actores, by = "demanda_id") %>%
   left_join(jobs_contactos_actores, by = "actor_id") %>%
   left_join(jobs_representantes, by = "demanda_id") %>%
-  select(demanda_id, expediente_id, folio_ofipart, actor_id,
-         nombre_completo_actor, telefono_actor, correo_actor,
-         edad, sexo, categoria_trabajo, jornada,
-         frecuencia_cobro, horas_semanales, percepcion_neta, daily_wage,
-         fecha_inicio, fecha_termino, tenure,
+  left_join(jobs_demandados, by = "demanda_id") %>%
+  select(demanda_id, expediente_id, folio_ofipart, junta, expediente, anio,
+         actor_id, nombre_completo_actor, telefono_actor, correo_actor,
+         edad, sexo, gen, categoria_trabajo, trabajador_base, jornada, tipo_jornada,
+         frecuencia_cobro, horas_sem, hextra, percepcion_neta, salario_diario,
+         fecha_inicio, fecha_termino, antig_dias,
          representante_id, nombre_completo_representante, despacho_representante,
-         abogado_ingresa, created_at_mx, date_mx, fecha_sirede)
-
-
+         abogado_ingresa, nombre_demandado,
+         created_at_mx, date_mx, fecha_sirede)
 
 # ---- Final data ----
-write_csv(jobs_data, here("01_Data", "02_Clean", "jobs_data.csv"))
+write_csv(jobs_clean, here("01_Data", "02_Clean", "jobs_clean.csv"))
+
+# Delete the auxiliary databases
+rm(list=setdiff(ls(), "jobs_clean"))
 
