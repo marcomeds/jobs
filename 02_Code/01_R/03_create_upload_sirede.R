@@ -11,7 +11,7 @@
 pacman::p_load(here, readr, readxl, lubridate, dplyr, tidyr, stringr)
 
 # ---- Clean and filter the control from drive ----
-control_mensajes <- read_excel(here("01_Data", "01_Raw", "Control Cadena de mensajes.xlsx")) %>%
+control_mensajes <- read_excel(here("01_Data", "01_Raw", "02_CDA", "Control PILOTO.xlsx")) %>%
   # Rename variables
   rename(correo_actor_wa = `Correo WA`,
          fecha_cita = `Fecha Cita`,
@@ -110,6 +110,60 @@ write_excel_csv(archivo_citatorios,
                 na = "")
 
 write_excel_csv(archivo_citatorios_daily,
-                here("01_Data", "04_Campanias", "archivo_citatorios_20220705.csv"),
+                here("01_Data", "04_Campanias", "archivo_citatorios_20220706.csv"),
                 na = "")
+  
+# ---- Archivo Calculadoras ----
+archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv")) %>%
+  right_join(control_mensajes) %>%
+  # Filter treatment arm with calculator
+  filter(tratamiento == "C2") %>%
+  # Rename variables
+  rename(id_demanda = demanda_id,
+         id_actor = actor_id,
+         genero = sexo,
+         antiguedad_dias = antig_dias,
+         horas_semanales = horas_sem) %>%
+  # Create string for the calculator
+  mutate(aux_nombre_demandados = str_extract(nombre_demandado, pattern = "^.*?(?=;)")) %>%
+  mutate(muchos_demandados = str_detect(nombre_demandado, pattern = ";.*;")) %>%
+  mutate(nombre_demandados = case_when(
+    muchos_demandados == T ~ str_c(aux_nombre_demandados, " Y OTROS"),
+    muchos_demandados == F & !is.na(aux_nombre_demandados) ~ str_c(aux_nombre_demandados, " Y OTRO"),
+    T ~ nombre_demandado
+  )) %>%
+  # Create features for the calculator
+  mutate(antiguedad_anios = round(antiguedad_dias / 365, 2)) %>%
+  # Calculate the proportion of this year worked
+  mutate(antiguedad_anio_actual = case_when(
+    !is.na(fecha_termino) ~ round(as.numeric(fecha_termino - as_date("2022-01-01")) / 365, 2),
+    is.na(fecha_termino) ~ round(as.numeric(date_mx - date("2022-01-01")) / 365, 2)
+  ),
+  # Calculate the days of vacation acording to tenure
+  dias_vacaciones = case_when(
+    antiguedad_anios < 1 ~ 0,
+    antiguedad_anios < 5 ~ 6 + (floor(antiguedad_anios) - 1)*2,
+    T ~ 12 + floor(antiguedad_anios/5)*2
+  )) %>%
+  # Calculate payments that should be made to the worker
+  mutate(c_indemnizacion = round(90*salario_diario, 2),
+         c_prima_antig = round(floor(antiguedad_anios)*12*salario_diario, 2),
+         c_aguinaldo = round(antiguedad_anio_actual*15*salario_diario, 2),
+         c_vacaciones = round(dias_vacaciones*0.25*salario_diario, 2)) %>%
+  # Select variables
+  select(id_actor, id_demanda, folio_ofipart, anio_folio, junta, expediente, anio,
+         created_at, tratamiento, nombre_completo_actor, genero, tipo_jornada,
+         horas_semanales, salario_diario, antiguedad_dias, antiguedad_anios,
+         nombre_demandados, accion_principal, giro_empresa, avg_amount_settlement,
+         prob_getting_zero, avg_amount_payment, c_indemnizacion, c_prima_antig,
+         c_aguinaldo, c_vacaciones)
+  
+write_excel_csv(archivo_calculadoras,
+                here("01_Data", "04_Campanias", "archivo_calculadoras.csv"),
+                na = "")
+
+write_excel_csv(archivo_calculadoras_daily,
+                here("01_Data", "04_Campanias", "archivo_calculadoras_20220706.csv"),
+                na = "")
+  
   

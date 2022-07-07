@@ -270,14 +270,15 @@ jobs_clean <- jobs_demandas %>%
   left_join(jobs_contactos_actores, by = "actor_id") %>%
   left_join(jobs_representantes, by = "demanda_id") %>%
   left_join(jobs_demandados, by = "demanda_id") %>%
-  select(demanda_id, expediente_id, folio_ofipart, junta, expediente, anio,
+  select(demanda_id, expediente_id, folio_ofipart, anio_folio, junta, expediente, anio,
+         accion_principal, accion_principal_segundo_nivel, giro_empleador, giro_empresa,
          actor_id, nombre_completo_actor, telefono_actor, correo_actor,
          edad, sexo, gen, categoria_trabajo, trabajador_base, jornada, tipo_jornada,
          frecuencia_cobro, horas_sem, hextra, percepcion_neta, salario_diario,
          fecha_inicio, fecha_termino, antig_dias,
          representante_id, nombre_completo_representante, despacho_representante,
          abogado_ingresa, nombre_demandado,
-         created_at_mx, date_mx, fecha_sirede)
+         created_at, created_at_mx, date_mx, fecha_sirede)
 
 # ---- Final data ----
 write_csv(jobs_clean, here("01_Data", "02_Clean", "jobs_clean.csv"))
