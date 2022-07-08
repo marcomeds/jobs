@@ -109,8 +109,10 @@ write_excel_csv(archivo_citatorios,
                 here("01_Data", "04_Campanias", "archivo_citatorios.csv"),
                 na = "")
 
+dir.create(here("01_Data", "04_Campanias", "20220708"))
+
 write_excel_csv(archivo_citatorios_daily,
-                here("01_Data", "04_Campanias", "archivo_citatorios_20220707.csv"),
+                here("01_Data", "04_Campanias", "20220708", "archivo_citatorios_20220708.csv"),
                 na = "")
   
 
@@ -164,6 +166,12 @@ archivo_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data.csv"))
            T ~ round(antiguedad_anios*15*salario_diario, 2)
          ),
          c_vacaciones = round(dias_vacaciones*1.25*salario_diario, 2)) %>%
+  # Change calculator estimations from mxn to number of wages
+  mutate(avg_amount_settlement = round(avg_amount_settlement / salario_diario),
+         avg_amount_payment = round(avg_amount_payment / salario_diario)) %>%
+  # Replace the estimation to 20 days if the estimation is lower than 20.
+  mutate(avg_amount_settlement = ifelse(avg_amount_settlement < 20, 20, avg_amount_settlement),
+         avg_amount_payment = ifelse(avg_amount_payment < 20, 20, avg_amount_payment)) %>%
   # Select variables
   select(id_actor, id_demanda, folio_ofipart, anio_folio, junta, expediente, anio,
          created_at, tratamiento, nombre_completo_actor, genero, tipo_jornada,

@@ -16,7 +16,8 @@ pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
 #set.seed(6138353)
 #set.seed(5309079)
 #set.seed(6771454)
-set.seed(3418726)
+#set.seed(3418726)
+set.seed(2164043)
 
 # Load jobs_clean.csv
 jobs_clean <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv"))
