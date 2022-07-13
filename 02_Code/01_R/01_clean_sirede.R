@@ -6,7 +6,7 @@
 #'
 
 # Load packages
-pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
+pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr, readxl)
 
 
 # ----Clean and filter demandas.csv ----
@@ -32,7 +32,7 @@ sirede_demandas <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv
   # Join with Sebas's SCIAN database to get the giro_empleador
   left_join(read_xlsx(here("01_Data", "01_Raw", "02_CDA", "giro_empleador.xlsx")),
             by = "giro_empleador") %>%
-  
+  #mutate(giro_empresa = ifelse(is.na(giro_empresa), 0, giro_empresa)) %>%
   # --- Filter case files ---
   # 1) Keep case files that entered after the experiment started (2022-06-27).
   # 2) Drop case files from subcourts 17, 19 y 20.
@@ -40,7 +40,8 @@ sirede_demandas <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv
   filter(date_mx >= date("2022-06-27") & date_mx < Sys.Date(),
          !junta %in% c(17, 19, 20),
          accion_principal_segundo_nivel %in% c("INDEMNIZACIÓN CONSTITUCIONAL",
-                                               "REINSTALACIÓN")) %>%
+                                               "REINSTALACIÓN"),
+         !is.na(folio_ofipart)) %>%
   # Create dummy for main action, where 1 is reinstatement and 0 is compensation
   mutate(accion_principal = as.numeric(accion_principal_segundo_nivel == "REINSTALACIÓN"))
 
