@@ -109,10 +109,10 @@ write_excel_csv(archivo_citatorios,
                 here("01_Data", "04_Campanias", "archivo_citatorios.csv"),
                 na = "")
 
-dir.create(here("01_Data", "04_Campanias", "20220708"))
+dir.create(here("01_Data", "04_Campanias", "20220713"))
 
 write_excel_csv(archivo_citatorios_daily,
-                here("01_Data", "04_Campanias", "20220708", "archivo_citatorios_20220708.csv"),
+                here("01_Data", "04_Campanias", "20220713", "archivo_citatorios_20220713.csv"),
                 na = "")
   
 
@@ -190,7 +190,7 @@ write_excel_csv(archivo_calculadoras,
                 na = "")
 
 write_excel_csv(archivo_calculadoras_daily,
-                here("01_Data", "04_Campanias", "archivo_calculadoras_20220707.csv"),
+                here("01_Data", "04_Campanias", "20220713", "archivo_calculadoras_20220713.csv"),
                 na = "")
   
   

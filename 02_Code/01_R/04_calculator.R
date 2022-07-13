@@ -31,12 +31,13 @@ jobs_encoded <- jobs_clean %>%
   pivot_wider(names_from = trabajador_base, names_prefix = "trabajador_base_", values_from = dummy, values_fill = 0) %>%
   # Auxiliar dummies
   mutate(giro_empresa_0 = 0,
-         giro_empresa_11 = 0,
+         #giro_empresa_11 = 0,
          giro_empresa_22 = 0,
          giro_empresa_55 = 0,
          giro_empresa_64 = 0,
          giro_empresa_93 = 0,
-         tipo_jornada_4 = 0)
+         tipo_jornada_4 = 0
+         )
   
 
 
