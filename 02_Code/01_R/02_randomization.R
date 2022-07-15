@@ -9,6 +9,7 @@
 pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
 
 # ---- Randomization ----
+# Set daily randomization seed
 #set.seed(5143883)
 #set.seed(4426759)
 #set.seed(3987658)
@@ -20,7 +21,8 @@ pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
 #set.seed(2164043)
 #set.seed(9916871)
 #set.seed(1787537)
-set.seed(2119361)
+#set.seed(2119361)
+set.seed(8074341)
 
 # Load jobs_clean.csv
 jobs_clean <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv"))

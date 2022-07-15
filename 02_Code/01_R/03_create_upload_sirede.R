@@ -82,18 +82,16 @@ sirede_demandados <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandados
   # Number the citatorios for each case file
   group_by(demanda_id) %>%
   mutate(consecutivo_citatorio = row_number()) %>%
-  ungroup() %>%
-  # Rename the variables for actor's name & id to merge with demandas.csv
-  rename(nombres_actores = nombre_completo_actor,
-         id = demanda_id)
+  ungroup()
 
-# --- Merge with demandas.csv ---
-archivo_citatorios <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv")) %>%
-  # Select variables we need from demandas.csv
-  select(id, folio_ofipart, anio_folio, junta, expediente, anio, created_at) %>%
-  right_join(sirede_demandados, by = "id") %>%
+# --- Merge with jobs_data.csv ---
+archivo_citatorios <- read_csv(here("01_Data", "03_Working", "jobs_data.csv")) %>%
+  # Select variables we need from jobs_data.csv
+  select(demanda_id, folio_ofipart, anio_folio, junta, expediente, anio, created_at) %>%
+  right_join(sirede_demandados, by = "demanda_id") %>%
   # Rename the id for the table
-  rename(id_demanda = id) %>%
+  rename(id_demanda = demanda_id,
+         nombres_actores = nombre_completo_actor) %>%
   # Order variables
   select(id_demanda, folio_ofipart, anio_folio, junta, expediente, anio,
          created_at, tratamiento, consecutivo_citatorio, nombres_actores,
@@ -109,10 +107,10 @@ write_excel_csv(archivo_citatorios,
                 here("01_Data", "04_Campanias", "archivo_citatorios.csv"),
                 na = "")
 
-dir.create(here("01_Data", "04_Campanias", "20220713"))
+dir.create(here("01_Data", "04_Campanias", "20220714"))
 
 write_excel_csv(archivo_citatorios_daily,
-                here("01_Data", "04_Campanias", "20220713", "archivo_citatorios_20220713.csv"),
+                here("01_Data", "04_Campanias", "20220714", "archivo_citatorios_20220714.csv"),
                 na = "")
   
 
@@ -190,7 +188,7 @@ write_excel_csv(archivo_calculadoras,
                 na = "")
 
 write_excel_csv(archivo_calculadoras_daily,
-                here("01_Data", "04_Campanias", "20220713", "archivo_calculadoras_20220713.csv"),
+                here("01_Data", "04_Campanias", "20220714", "archivo_calculadoras_20220714.csv"),
                 na = "")
   
   
