@@ -1,0 +1,102 @@
+---
+title: "Pilot Balance"
+author: "Marco Medina"
+date: "13/07/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Load libraries
+pacman::p_load(here, dplyr, lubridate, tidyr, ggplot2, ggthemes, scales, readr,
+               knitr, fixest, modelsummary, vtable)
+```
+
+
+```{r jobs_data}
+# Load jobs_data.csv
+jobs_data <- read_csv(here("01_Data", "03_Working", "jobs_data.csv"))
+```
+
+## Jobs Pilot
+
+1. We started the pilot on 28/06/2022 with case files entered on 27/06/2022.
+
+2. **Phase 1**. The first and a half week, we only assigned case files to the control group (A1), and the citatorio with encouragement group (B2).
+
+3. **Phase 2**. For case files entered after 07/07/2022, we assigned them to the control group (A1), the citatorio with encouragement treatment arm (B2), and the citatorio with encouragement plus calculator treatment arm (C2).
+
+```{r balance_table, results='asis'}
+jobs_balance <- jobs_data %>%
+  mutate(mujer = as.numeric(sexo == "MUJER"),
+         jornada_diurna = as.numeric(jornada == "DIURNA"),
+         pago_quincenal = as.numeric(frecuencia_cobro == "QUINCENAL"),
+         abogado_ingresa = as.numeric(abogado_ingresa)) %>%
+  select(accion_principal, edad, mujer, jornada_diurna, trabajador_base,
+         pago_quincenal, horas_sem, salario_diario, antig_dias,
+         abogado_ingresa, tratamiento, avg_amount_settlement, prob_getting_zero,
+         avg_amount_payment)
+
+sumtable(jobs_balance,
+         group = "tratamiento", 
+         group.test = T,
+         out = "latex",
+         title = "Balance Table - Jobs Pilot")
+```
+
+## Variable definition
+* **accion_principal**: main claim dummy, where 1 means reinstatement.
+* **edad**: worker's age.
+* **mujer**: gender dummy, where 1 means woman.
+* **jornada_diurna**: shift type dummy, where 1 means day shift.
+* **trabajador_base**: worker type dummy, where 1 means "trabajador de confianza" (domestic worker, manager, director, personal driver, etc.)
+* **pago_quincenal**: wage periodicity dummy, where 1 means biweekly payments.
+* **horas_sem**: weekly working hours.
+* **salario_diario**: daily wage.
+* **antig_dias**: tenure in days.
+* **abogado_ingresa**: dummy where 1 means the lawyer filed the lawsuit.
+* **avg_amount_settlement**: calculator estimate for the amount paid in case of settlement.
+* **prob_getting_zero**: calculator estimate for the probability of getting paid zero in case of laudo.
+* **avg_amount_payment**: calculator estimate for the amount paid in case of laudo.
+
+\clearpage
+
+```{r balance_table_ph_1, results='asis'}
+jobs_balance_ph_1 <- jobs_data %>%
+  filter(date_mx < date("2022-07-06")) %>%
+  mutate(mujer = as.numeric(sexo == "MUJER"),
+         jornada_diurna = as.numeric(jornada == "DIURNA"),
+         pago_quincenal = as.numeric(frecuencia_cobro == "QUINCENAL"),
+         abogado_ingresa = as.numeric(abogado_ingresa)) %>%
+  select(accion_principal, edad, mujer, jornada_diurna, trabajador_base,
+         pago_quincenal, horas_sem, salario_diario, antig_dias,
+         abogado_ingresa, tratamiento, avg_amount_settlement, prob_getting_zero,
+         avg_amount_payment)
+
+sumtable(jobs_balance_ph_1,
+         group = "tratamiento", 
+         group.test = T,
+         out = "latex",
+         title = "Balance Table - Phase 1")
+```
+
+```{r balance_table_ph_2, results='asis'}
+jobs_balance_ph_2 <- jobs_data %>%
+  filter(date_mx >= date("2022-07-06")) %>%
+  mutate(mujer = as.numeric(sexo == "MUJER"),
+         jornada_diurna = as.numeric(jornada == "DIURNA"),
+         pago_quincenal = as.numeric(frecuencia_cobro == "QUINCENAL"),
+         abogado_ingresa = as.numeric(abogado_ingresa)) %>%
+  select(accion_principal, edad, mujer, jornada_diurna, trabajador_base,
+         pago_quincenal, horas_sem, salario_diario, antig_dias,
+         abogado_ingresa, tratamiento, avg_amount_settlement, prob_getting_zero,
+         avg_amount_payment)
+
+sumtable(jobs_balance_ph_2,
+         group = "tratamiento", 
+         group.test = T,
+         out = "latex",
+         title = "Balance Table - Phase 2")
+```
+
