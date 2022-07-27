@@ -6,6 +6,9 @@
 #' @author Marco Medina
 #'
 
+# Load packages
+pacman::p_load(here, readr, readxl, lubridate, dplyr, tidyr, stringr, randomForest)
+
 # Load jobs_clean.csv
 jobs_clean <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv"))
 
@@ -30,7 +33,7 @@ jobs_encoded <- jobs_clean %>%
   mutate(dummy = 1) %>%
   pivot_wider(names_from = trabajador_base, names_prefix = "trabajador_base_", values_from = dummy, values_fill = 0) %>%
   # Auxiliar dummies
-  mutate(giro_empresa_0 = 0,
+  mutate(#giro_empresa_0 = 0,
          #giro_empresa_11 = 0,
          giro_empresa_22 = 0,
          giro_empresa_55 = 0,
