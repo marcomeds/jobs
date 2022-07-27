@@ -56,17 +56,16 @@ write_csv(jobs_daily_randomization %>%
           here("01_Data", "03_Working", "jobs_randomization.csv"))
 
 # Append daily randomization to the for the WhatsApp control
-write_csv(jobs_aux %>% 
+write_csv(jobs_daily_randomization %>% 
             filter(tratamiento != "A1") %>%
             select(randomization_id, demanda_id, fecha_sirede, expediente_id,
                    nombre_completo_actor, telefono_actor, correo_actor,
                    nombre_completo_representante, telefono_representante, correo_representante,
                    nombre_demandado, abogado_ingresa, tratamiento, folio_ofipart),
-          #append = T,
+          append = T,
           here("01_Data", "03_Working", "jobs_control.csv"))
 
   
-
 
 
 
