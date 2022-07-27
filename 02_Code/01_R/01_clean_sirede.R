@@ -41,7 +41,10 @@ sirede_demandas <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandas.csv
          !junta %in% c(17, 19, 20),
          accion_principal_segundo_nivel %in% c("INDEMNIZACIÓN CONSTITUCIONAL",
                                                "REINSTALACIÓN"),
-         !is.na(folio_ofipart)) %>%
+         !is.na(folio_ofipart),
+         !is.na(junta),
+         !is.na(expediente),
+         !is.na(anio))  %>%
   # Create dummy for main action, where 1 is reinstatement and 0 is compensation
   mutate(accion_principal = as.numeric(accion_principal_segundo_nivel == "REINSTALACIÓN"))
 
@@ -216,6 +219,27 @@ jobs_representantes <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "represen
 
 
 
+# ---- Clean contactos_representantes.csv ----
+jobs_contactos_representantes <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "contactos_representantes.csv")) %>%
+  
+  # --- Clean ---
+  # Drop id to be able to pivot wider
+  select(-id, -created_at, -updated_at) %>%
+  mutate(tipo = ifelse(tipo == "TELÉFONO CELULAR", "CELULAR", tipo)) %>%
+  # Keep the first contact information of each type
+  distinct(representante_id, tipo, .keep_all = T) %>%
+  # Make the database wider
+  pivot_wider(names_from = tipo, values_from = contacto) %>%
+  # Create telefono_representantes variable. Give preference to cellphones, keep the other phone 
+  # number if the cellphone is missing.
+  mutate(telefono_representante = ifelse(is.na(CELULAR), TELÉFONO, CELULAR)) %>%
+  rename(correo_representante = EMAIL) %>%
+  
+  # --- Select ---
+  select(representante_id, telefono_representante, correo_representante)
+
+
+
 # ---- Clean demandados.csv ----
 jobs_demandados <- read_csv(here("01_Data", "01_Raw", "01_SIREDE", "demandados.csv")) %>%
 
@@ -270,6 +294,7 @@ jobs_clean <- jobs_demandas %>%
   left_join(jobs_actores, by = "demanda_id") %>%
   left_join(jobs_contactos_actores, by = "actor_id") %>%
   left_join(jobs_representantes, by = "demanda_id") %>%
+  left_join(jobs_contactos_representantes, by = "representante_id") %>%
   left_join(jobs_demandados, by = "demanda_id") %>%
   select(demanda_id, expediente_id, folio_ofipart, anio_folio, junta, expediente, anio,
          accion_principal, accion_principal_segundo_nivel, giro_empleador, giro_empresa,
@@ -277,9 +302,9 @@ jobs_clean <- jobs_demandas %>%
          edad, sexo, gen, categoria_trabajo, trabajador_base, jornada, tipo_jornada,
          frecuencia_cobro, horas_sem, hextra, percepcion_neta, salario_diario,
          fecha_inicio, fecha_termino, antig_dias,
-         representante_id, nombre_completo_representante, despacho_representante,
-         abogado_ingresa, nombre_demandado,
-         created_at, created_at_mx, date_mx, fecha_sirede)
+         representante_id, nombre_completo_representante, telefono_representante,
+         correo_representante, despacho_representante, abogado_ingresa, 
+         nombre_demandado, created_at, created_at_mx, date_mx, fecha_sirede)
 
 # ---- Final data ----
 write_csv(jobs_clean, here("01_Data", "02_Clean", "jobs_clean.csv"))

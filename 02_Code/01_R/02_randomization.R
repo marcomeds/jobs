@@ -22,7 +22,16 @@ pacman::p_load(here, readr, lubridate, dplyr, tidyr, stringr)
 #set.seed(9916871)
 #set.seed(1787537)
 #set.seed(2119361)
-set.seed(8074341)
+#set.seed(8074341)
+#set.seed(8509443)
+#set.seed(7043099)
+#set.seed(6872403)
+#set.seed(5895691)
+#set.seed(1777542)
+#set.seed(6440713)
+#set.seed(7313277)
+#set.seed(5678875)
+set.seed(7701316)
 
 # Load jobs_clean.csv
 jobs_clean <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv"))
@@ -33,7 +42,7 @@ jobs_randomization <- read_csv(here("01_Data", "03_Working", "jobs_randomization
 # Perform daily randomization
 jobs_daily_randomization <- jobs_clean %>%
   # Keep casefiles that haven't been randomized. 
-  anti_join(jobs_randomization, by = "demanda_id") %>%
+  anti_join(jobs_randomization, by = "folio_ofipart") %>%
   # Select treatment group. For the pilot, we only have control (A1), summons 
   # with encouragement (B2), and summons with encourgament + calculator (C2).
   mutate(tratamiento = sample(c("A1", "B2", "C2"), n(), replace = T)) %>%
@@ -47,15 +56,17 @@ write_csv(jobs_daily_randomization %>%
           here("01_Data", "03_Working", "jobs_randomization.csv"))
 
 # Append daily randomization to the for the WhatsApp control
-write_csv(jobs_daily_randomization %>% 
+write_csv(jobs_aux %>% 
             filter(tratamiento != "A1") %>%
             select(randomization_id, demanda_id, fecha_sirede, expediente_id,
                    nombre_completo_actor, telefono_actor, correo_actor,
-                   nombre_completo_representante, nombre_demandado, abogado_ingresa, tratamiento, folio_ofipart),
-          append = T,
+                   nombre_completo_representante, telefono_representante, correo_representante,
+                   nombre_demandado, abogado_ingresa, tratamiento, folio_ofipart),
+          #append = T,
           here("01_Data", "03_Working", "jobs_control.csv"))
 
   
+
 
 
 
