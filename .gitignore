@@ -27,6 +27,10 @@
 
 # Exclude raw databases
 01_Data/01_Raw/**/*.csv
+!01_Data/01_Raw/03_Calculadora/salario_minimo.csv
+01_Data/01_Raw/**/*.xlsx
+01_Data/01_Raw/**/*.rdata
+01_Data/01_Raw/**/*.rds
 
 # Exclude clean databases
 01_Data/02_Clean/**
