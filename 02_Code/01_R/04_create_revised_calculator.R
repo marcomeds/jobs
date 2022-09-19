@@ -13,8 +13,8 @@ pacman::p_load(here, readr, readxl, lubridate, dplyr, tidyr, stringr, randomFore
 revision_calculadoras_presencial <- read_sheet("https://docs.google.com/spreadsheets/d/1mxkWFc4lqDOfl1A_vfO5hSbZ86UBxrE0q1hujRsxhvU/edit#gid=0") %>%
   select(expediente_id, fecha_cita, percepcion_neta, frecuencia_cobro, horas_sem, fecha_inicio,
          fecha_termino, tipo_jornada, gen, accion_principal, categoria_trabajo) %>%
-  filter(fecha_cita == "22/08/2022") %>%
-  select(-fecha_cita) 
+  filter(fecha_cita == as.Date("2022-08-25")) %>%
+  select(-fecha_cita)
 
 # Load jobs_clean.csv
 jobs_clean <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv")) %>%
@@ -68,21 +68,28 @@ jobs_encoded <- jobs_clean %>%
   mutate(giro_empresa_0 = 0,
     giro_empresa_11 = 0,
     giro_empresa_22 = 0,
+    giro_empresa_23 = 0,
     giro_empresa_31 = 0,
     giro_empresa_32 = 0,
     giro_empresa_33 = 0, 
+    #giro_empresa_43 = 0,
     giro_empresa_48 = 0,
     giro_empresa_49 = 0,
     giro_empresa_51 = 0,
     giro_empresa_52 = 0,
+    giro_empresa_53 = 0,
+    #giro_empresa_54 = 0,
     giro_empresa_55 = 0,
+    giro_empresa_56 = 0,
     giro_empresa_61 = 0,
     giro_empresa_62 = 0,
     giro_empresa_64 = 0,
     giro_empresa_71 = 0,
-    giro_empresa_81 = 0,
+    #giro_empresa_72 = 0,
+    #giro_empresa_81 = 0,
     giro_empresa_93 = 0,
     tipo_jornada_2 = 0,
+    #tipo_jornada_3 = 0,
     tipo_jornada_4 = 0,
     trabajador_base_1 = 0
   )
@@ -228,3 +235,93 @@ jobs_data <- jobs_clean %>%
 # Save jobs_data.csv
 write_csv(jobs_data, here("01_Data", "03_Working", "jobs_data_revision.csv"))
 
+
+
+# ---- Calculate features for the calculators ----
+jobs_calculadoras <- read_csv(here("01_Data", "03_Working", "jobs_data_revision.csv")) %>%
+  
+  # Filter those case files that have scheduled appointments
+  #right_join(jobs_citas %>% distinct(demanda_id), by = "demanda_id") %>%
+  
+  # Filter treatment arm with calculator
+  filter(tratamiento == "C2") %>%
+  
+  # Rename variables
+  rename(id_demanda = demanda_id,
+         id_actor = actor_id,
+         genero = sexo,
+         antiguedad_dias = antig_dias,
+         horas_semanales = horas_sem) %>%
+  
+  # Create string with the defendants names for the calculator
+  mutate(aux_nombre_demandados = str_extract(nombre_demandado, pattern = "^.*?(?=;)")) %>%
+  mutate(muchos_demandados = str_detect(nombre_demandado, pattern = ";.*;")) %>%
+  mutate(nombre_demandados = case_when(
+    muchos_demandados == T ~ str_c(aux_nombre_demandados, " Y OTROS"),
+    muchos_demandados == F & !is.na(aux_nombre_demandados) ~ str_c(aux_nombre_demandados, " Y OTRO"),
+    T ~ nombre_demandado
+  )) %>%
+  
+  # Create features for the calculator
+  mutate(antiguedad_anios = round(antiguedad_dias / 365, 2)) %>%
+  
+  # Get the minimum wage for the year the worker ended it's work relation
+  mutate(anio_termino = case_when(
+    !is.na(fecha_termino) ~ year(fecha_termino),
+    is.na(fecha_termino) ~ year(date_mx)
+  )) %>%
+  left_join(read_csv(here("01_Data", "01_Raw", "03_Calculadora", "salario_minimo.csv")), by = "anio_termino") %>%
+  
+  # Calculate the proportion of this year worked
+  mutate(antiguedad_anio_actual = antiguedad_anios - floor(antiguedad_anios),
+  
+  # Calculate the days of vacation acording to tenure
+  dias_vacaciones = case_when(
+    antiguedad_anios < 1 ~ 6*antiguedad_anios,
+    antiguedad_anios < 5 ~ 6 + (floor(antiguedad_anios) - 1)*2,
+    T ~ 12 + floor(antiguedad_anios/5)*2
+  )) %>%
+  
+  # Calculate payments that should be made to the worker
+  mutate(c_indemnizacion = round(90*salario_diario, 2),
+         c_prima_antig = case_when(
+           salario_diario < 2*sal_min ~ round(antiguedad_anios*12*salario_diario, 2),
+           T ~ round(antiguedad_anios*12*2*sal_min, 2)
+         ),
+         c_aguinaldo = case_when(
+           antiguedad_anio_actual < antiguedad_anios ~ round(antiguedad_anio_actual*15*salario_diario, 2),
+           T ~ round(antiguedad_anios*15*salario_diario, 2)
+         ),
+         c_vacaciones = round(dias_vacaciones*1.25*salario_diario, 2)) %>%
+  
+  # Change calculator estimations from mxn to number of wages
+  mutate(avg_amount_settlement = round(avg_amount_settlement / salario_diario),
+         avg_amount_payment = round(avg_amount_payment / salario_diario)) %>%
+  
+  # Replace the estimation to 20 days if the estimation is lower than 20.
+  mutate(avg_amount_settlement = ifelse(avg_amount_settlement < 20, 20, avg_amount_settlement),
+         avg_amount_payment = ifelse(avg_amount_payment < 20, 20, avg_amount_payment)) %>%
+  
+  # Select variables
+  select(id_actor, id_demanda, folio_ofipart, anio_folio, junta, expediente, anio,
+         created_at, tratamiento, nombre_completo_actor, genero, tipo_jornada,
+         horas_semanales, salario_diario, antiguedad_dias, antiguedad_anios,
+         nombre_demandados, accion_principal, giro_empresa, avg_amount_settlement,
+         prob_getting_zero, avg_amount_payment, c_indemnizacion, c_prima_antig,
+         c_aguinaldo, c_vacaciones)
+
+
+
+# ---- Create to archivo_calculadoras ----
+
+# Today's date for the directory and files sufix
+date_suffix <- str_remove_all(Sys.Date(), pattern = "-")
+file_suffix <- str_c(date_suffix, "_rev")
+
+# Create today's directory
+dir.create(here("01_Data", "04_Campanias", file_suffix))
+
+# Create today's calculadoras files
+write_csv(jobs_calculadoras,
+          here("01_Data", "04_Campanias", file_suffix, str_c("archivo_calculadoras_", date_suffix, ".csv")),
+          na = "")

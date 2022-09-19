@@ -143,7 +143,7 @@ write_csv(jobs_citatorios,
 
 
 
-# ---- Prepare revised data for calculatores ----
+# ---- Prepare revised data for calculators ----
 
 # Get the revised info from google drive
 drive_calculadoras <- read_sheet("https://docs.google.com/spreadsheets/d/1UMEHZ13EzA9rFi3jZiEBVx9q_DKIhaqcpG8R8ssBTZk/edit#gid=0") %>%
@@ -152,7 +152,10 @@ drive_calculadoras <- read_sheet("https://docs.google.com/spreadsheets/d/1UMEHZ1
   right_join(jobs_citatorios %>% filter(tratamiento ==  "C2") %>% distinct(folio_ofipart), by = "folio_ofipart") %>%
   
   # Drop not relevant variables
-  select(-REVISOR, -fecha_agendada)
+  select(-REVISOR, -fecha_agendada) %>%
+  
+  # Keep one observation per casefile revised
+  distinct(folio_ofipart, .keep_all = T)
 
 
 
@@ -198,51 +201,50 @@ data_calculadoras <- read_csv(here("01_Data", "02_Clean", "jobs_clean.csv")) %>%
 jobs_encoded <- data_calculadoras %>%
   
   # --- Dummies encoding (for the calculator) ---
+  # Note: Hot encoding doesn't work for few observations.
   # Giro empresa
-  mutate(dummy = 1) %>%
-  pivot_wider(names_from = giro_empresa, names_prefix = "giro_empresa_", values_from = dummy, values_fill = 0) %>%
-  #select(-giro_empresa_46) %>%
+  mutate(giro_empresa_0  = ifelse(giro_empresa == 0, 1, 0),
+         giro_empresa_11 = ifelse(giro_empresa == 11, 1, 0),
+         giro_empresa_22 = ifelse(giro_empresa == 22, 1, 0),
+         giro_empresa_23 = ifelse(giro_empresa == 23, 1, 0),
+         giro_empresa_31 = ifelse(giro_empresa == 31, 1, 0),
+         giro_empresa_32 = ifelse(giro_empresa == 32, 1, 0),
+         giro_empresa_33 = ifelse(giro_empresa == 33, 1, 0),
+         giro_empresa_43 = ifelse(giro_empresa == 43, 1, 0),
+         giro_empresa_46 = ifelse(giro_empresa == 46, 1, 0),
+         giro_empresa_48 = ifelse(giro_empresa == 48, 1, 0),
+         giro_empresa_49 = ifelse(giro_empresa == 49, 1, 0),
+         giro_empresa_51 = ifelse(giro_empresa == 51, 1, 0),
+         giro_empresa_52 = ifelse(giro_empresa == 52, 1, 0),
+         giro_empresa_53 = ifelse(giro_empresa == 53, 1, 0),
+         giro_empresa_54 = ifelse(giro_empresa == 54, 1, 0),
+         giro_empresa_55 = ifelse(giro_empresa == 55, 1, 0),
+         giro_empresa_56 = ifelse(giro_empresa == 56, 1, 0),
+         giro_empresa_61 = ifelse(giro_empresa == 61, 1, 0),
+         giro_empresa_62 = ifelse(giro_empresa == 62, 1, 0),
+         giro_empresa_64 = ifelse(giro_empresa == 64, 1, 0),
+         giro_empresa_71 = ifelse(giro_empresa == 71, 1, 0),
+         giro_empresa_72 = ifelse(giro_empresa == 72, 1, 0),
+         giro_empresa_81 = ifelse(giro_empresa == 81, 1, 0),
+         giro_empresa_93 = ifelse(giro_empresa == 93, 1, 0)) %>%
+ 
   # Accion principal
-  mutate(dummy = 1) %>%
-  pivot_wider(names_from = accion_principal, names_prefix = "accion_principal_", values_from = dummy, values_fill = 0) %>%
+  mutate(accion_principal_0 = ifelse(accion_principal == 0, 1, 0),
+         accion_principal_1 = ifelse(accion_principal == 1, 1, 0)) %>%
+  
   # Gender
-  mutate(dummy = 1) %>%
-  pivot_wider(names_from = gen, names_prefix = "gen_", values_from = dummy, values_fill = 0) %>%
+  mutate(gen_0 = ifelse(gen == 0, 1, 0),
+         gen_1 = ifelse(gen == 1, 1, 0)) %>%
+  
   # Tipo jornada
-  mutate(dummy = 1) %>%
-  pivot_wider(names_from = tipo_jornada, names_prefix = "tipo_jornada_", values_from = dummy, values_fill = 0) %>%
+  mutate(tipo_jornada_1 = ifelse(tipo_jornada == 1, 1, 0),
+         tipo_jornada_2 = ifelse(tipo_jornada == 2, 1, 0),
+         tipo_jornada_3 = ifelse(tipo_jornada == 3, 1, 0),
+         tipo_jornada_4 = ifelse(tipo_jornada == 4, 1, 0)) %>%
+  
   # Trabajador base
-  mutate(dummy = 1) %>%
-  pivot_wider(names_from = trabajador_base, names_prefix = "trabajador_base_", values_from = dummy, values_fill = 0) %>%
-  # Auxiliar dummies
-  mutate(giro_empresa_0 = 0,
-         giro_empresa_11 = 0,
-         giro_empresa_22 = 0,
-         giro_empresa_23 = 0,
-         giro_empresa_31 = 0,
-         giro_empresa_32 = 0,
-         giro_empresa_33 = 0, 
-         giro_empresa_43 = 0,
-         #giro_empresa_48 = 0,
-         giro_empresa_49 = 0,
-         giro_empresa_51 = 0,
-         giro_empresa_52 = 0,
-         giro_empresa_53 = 0,
-         giro_empresa_54 = 0,
-         giro_empresa_55 = 0,
-         giro_empresa_61 = 0,
-         #giro_empresa_62 = 0,
-         giro_empresa_64 = 0,
-         giro_empresa_71 = 0,
-         giro_empresa_72 = 0,
-         giro_empresa_81 = 0,
-         giro_empresa_93 = 0,
-         tipo_jornada_2 = 0,
-         tipo_jornada_3 = 0,
-         tipo_jornada_4 = 0,
-         trabajador_base_1 = 0,
-         gen_1 = 0
-  )
+  mutate(trabajador_base_0 = ifelse(trabajador_base == 0, 1, 0),
+         trabajador_base_1 = ifelse(trabajador_base == 1, 1, 0))
 
 
 
